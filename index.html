@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GIF Dance - Texture to Emoji</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Among Us Booty Emoji Generator</h1>
+        <p class="subtitle">Create custom animated Slack emojis with your textures</p>
+
+        <div class="upload-section">
+            <label for="texture-upload" class="upload-label">
+                <div class="upload-area" id="upload-area">
+                    <svg width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    <p>Click to upload or drag & drop</p>
+                    <p class="hint">PNG, JPG, or GIF</p>
+                </div>
+            </label>
+            <input type="file" id="texture-upload" accept="image/*" hidden>
+        </div>
+
+        <div class="preview-section" id="preview-section" style="display: none;">
+            <div class="canvas-container">
+                <canvas id="preview-canvas" width="128" height="128"></canvas>
+            </div>
+
+            <div class="controls">
+                <button id="generate-btn" class="btn btn-primary">Generate GIF</button>
+                <button id="download-btn" class="btn btn-success" style="display: none;">Download Emoji</button>
+            </div>
+
+            <div class="status" id="status"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

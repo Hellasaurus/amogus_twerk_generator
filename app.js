@@ -1,19 +1,27 @@
 // Configuration
 const CANVAS_SIZE = 128; // Slack emoji size
-const FRAME_DELAY = 150; // ms
-const FRAME_PATHS = [
-    'frames_web/frame_1.png',
-    'frames_web/frame_2.png',
-    'frames_web/frame_3.png',
-    'frames_web/frame_4.png',
-    'frames_web/frame_5.png',
-    'frames_web/frame_6.png',
-];
+const FRAME_DELAY = 75; // ms (doubled framerate from 150ms)
+const FRAME_COUNT = 6;
+const SOURCE_CROP = 24; // Pixels to crop from each edge of source (480x480) for tighter framing
+
+// Pre-rendered mask paths
+const MASK_PATHS = {
+    base: Array.from({length: FRAME_COUNT}, (_, i) => `masks/frame_${i+1}_base.png`),
+    mask: Array.from({length: FRAME_COUNT}, (_, i) => `masks/frame_${i+1}_mask.png`),
+    lines: Array.from({length: FRAME_COUNT}, (_, i) => `masks/frame_${i+1}_lines.png`),
+    shading: Array.from({length: FRAME_COUNT}, (_, i) => `masks/frame_${i+1}_shading.png`),
+};
 
 // State
-let baseFrames = []; // Loaded Among Us frames
+let prerenderedFrames = {
+    base: [],    // Base frames with green screen removed
+    mask: [],    // Yellow masks (where to apply texture)
+    lines: [],   // Black outline lines
+    shading: [], // Shading maps
+};
 let uploadedTexture = null;
 let isGenerating = false;
+let previewAnimationInterval = null; // For animating the preview
 
 // DOM Elements
 const textureUpload = document.getElementById('texture-upload');
@@ -23,31 +31,46 @@ const previewCanvas = document.getElementById('preview-canvas');
 const generateBtn = document.getElementById('generate-btn');
 const downloadBtn = document.getElementById('download-btn');
 const statusDiv = document.getElementById('status');
+const resultPreview = document.getElementById('result-preview');
+const resultGif = document.getElementById('result-gif');
 
 const ctx = previewCanvas.getContext('2d', { willReadFrequently: true });
 
-// Load base frames on startup
-loadBaseFrames();
+// Load pre-rendered masks on startup
+loadPrerenderedFrames();
 
-async function loadBaseFrames() {
-    statusDiv.textContent = 'Loading base animation frames...';
+async function loadPrerenderedFrames() {
+    statusDiv.textContent = 'Loading pre-rendered frames and masks...';
 
     try {
-        const loadPromises = FRAME_PATHS.map(path => {
+        // Helper to load images
+        const loadImage = (path) => {
             return new Promise((resolve, reject) => {
                 const img = new Image();
                 img.onload = () => resolve(img);
                 img.onerror = reject;
                 img.src = path;
             });
-        });
+        };
 
-        baseFrames = await Promise.all(loadPromises);
+        // Load all pre-rendered data in parallel
+        const loadPromises = {
+            base: Promise.all(MASK_PATHS.base.map(loadImage)),
+            mask: Promise.all(MASK_PATHS.mask.map(loadImage)),
+            lines: Promise.all(MASK_PATHS.lines.map(loadImage)),
+            shading: Promise.all(MASK_PATHS.shading.map(loadImage)),
+        };
+
+        prerenderedFrames.base = await loadPromises.base;
+        prerenderedFrames.mask = await loadPromises.mask;
+        prerenderedFrames.lines = await loadPromises.lines;
+        prerenderedFrames.shading = await loadPromises.shading;
+
         statusDiv.textContent = 'Upload a texture to get started!';
-        console.log(`Loaded ${baseFrames.length} base frames`);
+        console.log(`Loaded ${prerenderedFrames.base.length} frames with pre-rendered masks`);
     } catch (error) {
-        statusDiv.textContent = 'Error loading base frames. Please refresh.';
-        console.error('Failed to load base frames:', error);
+        statusDiv.textContent = 'Error loading frames. Please refresh.';
+        console.error('Failed to load pre-rendered frames:', error);
     }
 }
 
@@ -87,11 +110,12 @@ function loadTexture(file) {
             uploadedTexture = img;
             previewSection.style.display = 'block';
             downloadBtn.style.display = 'none';
+            resultPreview.style.display = 'none'; // Hide previous result
             statusDiv.textContent = 'Texture loaded! Click "Generate GIF" to create your emoji.';
 
-            // Draw a preview frame
-            if (baseFrames.length > 0) {
-                processAndDrawFrame(baseFrames[0], uploadedTexture);
+            // Start animated preview
+            if (prerenderedFrames.base.length > 0) {
+                startPreviewAnimation();
             }
         };
         img.src = e.target.result;
@@ -99,191 +123,130 @@ function loadTexture(file) {
     reader.readAsDataURL(file);
 }
 
-// Image processing functions
-function erodeMask(mask, width, height, iterations = 2) {
-    let result = new Uint8ClampedArray(mask);
-
-    for (let iter = 0; iter < iterations; iter++) {
-        const eroded = new Uint8ClampedArray(width * height);
-
-        // Check 3x3 neighborhood
-        for (let y = 1; y < height - 1; y++) {
-            for (let x = 1; x < width - 1; x++) {
-                const idx = y * width + x;
-
-                if (result[idx] > 128) {
-                    // Count neighbors
-                    let count = 0;
-                    for (let dy = -1; dy <= 1; dy++) {
-                        for (let dx = -1; dx <= 1; dx++) {
-                            const nIdx = (y + dy) * width + (x + dx);
-                            if (result[nIdx] > 128) count++;
-                        }
-                    }
-
-                    // Keep pixel only if at least 7 of 9 neighbors are in mask
-                    if (count >= 7) {
-                        eroded[idx] = 255;
-                    }
-                }
-            }
-        }
-
-        result = eroded;
+function startPreviewAnimation() {
+    // Stop any existing animation
+    if (previewAnimationInterval) {
+        clearInterval(previewAnimationInterval);
     }
 
-    return result;
+    let currentFrame = 0;
+
+    // Draw first frame immediately
+    processAndDrawFrame(uploadedTexture, currentFrame);
+
+    // Animate through all frames
+    previewAnimationInterval = setInterval(() => {
+        currentFrame = (currentFrame + 1) % FRAME_COUNT;
+        processAndDrawFrame(uploadedTexture, currentFrame);
+    }, FRAME_DELAY);
 }
 
-function createYellowMask(imageData) {
-    const data = imageData.data;
-    const width = imageData.width;
-    const height = imageData.height;
-    const mask = new Uint8ClampedArray(width * height);
-
-    for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-
-        // Yellow detection: high R, high G, low B
-        const isYellow = (
-            r > 180 &&
-            g > 120 &&
-            b < 150 &&
-            r > b &&
-            g > b
-        );
-
-        mask[i / 4] = isYellow ? 255 : 0;
+function stopPreviewAnimation() {
+    if (previewAnimationInterval) {
+        clearInterval(previewAnimationInterval);
+        previewAnimationInterval = null;
     }
-
-    // Erode mask to remove antialiased edges
-    return erodeMask(mask, width, height, 2);
 }
 
-function removeGreenScreen(imageData) {
-    const data = imageData.data;
+// Image processing functions using pre-rendered masks
+function processAndDrawFrame(texture, frameIndex = 0) {
+    // Get pre-rendered data for this frame
+    const baseFrame = prerenderedFrames.base[frameIndex];
+    const maskImage = prerenderedFrames.mask[frameIndex];
+    const linesImage = prerenderedFrames.lines[frameIndex];
+    const shadingImage = prerenderedFrames.shading[frameIndex];
 
-    for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
+    // Calculate cropped dimensions
+    const sourceSize = baseFrame.width;
+    const croppedSize = sourceSize - (SOURCE_CROP * 2);
 
-        // Green screen detection (avoid overflow by using proper comparisons)
-        const isGreen = (
-            g > 150 &&
-            g > r + 30 &&
-            g > b + 30 &&
-            r < 100
-        );
-
-        if (isGreen) {
-            data[i + 3] = 0; // Make transparent
-        }
-    }
-
-    return imageData;
-}
-
-function extractShadingMap(imageData, mask) {
-    const data = imageData.data;
-    const width = imageData.width;
-    const height = imageData.height;
-    const shadingMap = new Float32Array(width * height);
-
-    // Calculate luminance for each pixel
-    const luminance = new Float32Array(width * height);
-    for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        luminance[i / 4] = 0.299 * r + 0.587 * g + 0.114 * b;
-    }
-
-    // Find min/max luminance in masked region
-    let minLum = Infinity;
-    let maxLum = -Infinity;
-    for (let i = 0; i < mask.length; i++) {
-        if (mask[i] > 128) {
-            minLum = Math.min(minLum, luminance[i]);
-            maxLum = Math.max(maxLum, luminance[i]);
-        }
-    }
-
-    // Create normalized shading map
-    for (let i = 0; i < shadingMap.length; i++) {
-        if (mask[i] > 128) {
-            if (maxLum > minLum) {
-                // Normalize to 0-1, then clamp to 0.4-1.0 range
-                const normalized = (luminance[i] - minLum) / (maxLum - minLum);
-                shadingMap[i] = Math.max(0.4, Math.min(1.0, normalized));
-            } else {
-                shadingMap[i] = 1.0;
-            }
-        } else {
-            shadingMap[i] = 1.0;
-        }
-    }
-
-    return shadingMap;
-}
-
-function applyTextureToMask(baseImageData, textureImageData, mask, originalImageData) {
-    const baseData = baseImageData.data;
-    const textureData = textureImageData.data;
-
-    // Extract shading from original frame (before green screen removal)
-    const shadingMap = extractShadingMap(originalImageData, mask);
-
-    for (let i = 0; i < baseData.length; i += 4) {
-        const pixelIndex = i / 4;
-
-        if (mask[pixelIndex] > 128) {
-            // Apply texture with shading
-            const shade = shadingMap[pixelIndex];
-            baseData[i] = Math.floor(textureData[i] * shade);     // R
-            baseData[i + 1] = Math.floor(textureData[i + 1] * shade); // G
-            baseData[i + 2] = Math.floor(textureData[i + 2] * shade); // B
-            // Keep original alpha from base
-        }
-    }
-
-    return baseImageData;
-}
-
-function processAndDrawFrame(baseFrame, texture) {
-    // Create temp canvas for processing at original size
+    // Create temp canvas for processing at cropped size
     const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = baseFrame.width;
-    tempCanvas.height = baseFrame.height;
+    tempCanvas.width = croppedSize;
+    tempCanvas.height = croppedSize;
     const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
 
-    // Draw base frame and get original image data
-    tempCtx.drawImage(baseFrame, 0, 0);
-    const originalImageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+    // Draw base frame (cropped by SOURCE_CROP pixels from each edge)
+    tempCtx.drawImage(
+        baseFrame,
+        SOURCE_CROP, SOURCE_CROP, croppedSize, croppedSize,  // Source: crop from edges
+        0, 0, croppedSize, croppedSize                       // Dest: fill canvas
+    );
+    const baseImageData = tempCtx.getImageData(0, 0, croppedSize, croppedSize);
 
-    // Create a copy for processing
-    let imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+    // Draw texture to get its image data (cropped)
+    tempCtx.clearRect(0, 0, croppedSize, croppedSize);
+    tempCtx.drawImage(
+        texture,
+        0, 0, texture.width, texture.height,  // Source: entire texture
+        0, 0, croppedSize, croppedSize        // Dest: scaled to cropped size
+    );
+    const textureImageData = tempCtx.getImageData(0, 0, croppedSize, croppedSize);
 
-    // Create yellow mask
-    const mask = createYellowMask(originalImageData);
+    // Draw mask to get mask data (cropped)
+    tempCtx.clearRect(0, 0, croppedSize, croppedSize);
+    tempCtx.drawImage(
+        maskImage,
+        SOURCE_CROP, SOURCE_CROP, croppedSize, croppedSize,
+        0, 0, croppedSize, croppedSize
+    );
+    const maskImageData = tempCtx.getImageData(0, 0, croppedSize, croppedSize);
 
-    // Remove green screen
-    imageData = removeGreenScreen(imageData);
+    // Draw shading to get shading data (cropped)
+    tempCtx.clearRect(0, 0, croppedSize, croppedSize);
+    tempCtx.drawImage(
+        shadingImage,
+        SOURCE_CROP, SOURCE_CROP, croppedSize, croppedSize,
+        0, 0, croppedSize, croppedSize
+    );
+    const shadingImageData = tempCtx.getImageData(0, 0, croppedSize, croppedSize);
 
-    // Draw texture
-    tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
-    tempCtx.drawImage(texture, 0, 0, tempCanvas.width, tempCanvas.height);
-    const textureImageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+    // Draw lines to get line mask data (cropped)
+    tempCtx.clearRect(0, 0, croppedSize, croppedSize);
+    tempCtx.drawImage(
+        linesImage,
+        SOURCE_CROP, SOURCE_CROP, croppedSize, croppedSize,
+        0, 0, croppedSize, croppedSize
+    );
+    const linesImageData = tempCtx.getImageData(0, 0, croppedSize, croppedSize);
 
-    // Apply texture to masked regions with shading from original
-    imageData = applyTextureToMask(imageData, textureImageData, mask, originalImageData);
+    // Apply texture to masked regions with shading
+    const resultData = baseImageData.data;
+    const texData = textureImageData.data;
+    const maskData = maskImageData.data;
+    const shadingData = shadingImageData.data;
+    const linesData = linesImageData.data;
 
-    // Draw result to temp canvas
-    tempCtx.putImageData(imageData, 0, 0);
+    for (let i = 0; i < resultData.length; i += 4) {
+        const pixelIndex = i / 4;
 
-    // Draw to preview canvas (scaled down)
+        // Check if this pixel is in the mask (using red channel, since it's grayscale)
+        if (maskData[i] > 128) {
+            // Get shading value (0-255, maps to 0.4-1.0)
+            // 102 = 0.4, 255 = 1.0
+            const shadingValue = shadingData[i];
+            const shade = (shadingValue / 255) * 0.6 + 0.4; // Map 0-255 to 0.4-1.0
+
+            // Apply texture with shading
+            resultData[i] = Math.floor(texData[i] * shade);         // R
+            resultData[i + 1] = Math.floor(texData[i + 1] * shade); // G
+            resultData[i + 2] = Math.floor(texData[i + 2] * shade); // B
+            // Alpha from base frame is already set
+        }
+
+        // Overlay black lines on top
+        if (linesData[i] > 128) {
+            resultData[i] = 0;     // R
+            resultData[i + 1] = 0; // G
+            resultData[i + 2] = 0; // B
+            // Keep alpha unchanged
+        }
+    }
+
+    // Put the result back on canvas
+    tempCtx.putImageData(baseImageData, 0, 0);
+
+    // Draw to preview canvas (scaled down to 128x128)
     ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
     ctx.drawImage(tempCanvas, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
 
@@ -294,7 +257,7 @@ function processAndDrawFrame(baseFrame, texture) {
 generateBtn.addEventListener('click', generateGIF);
 
 async function generateGIF() {
-    if (isGenerating || !uploadedTexture || baseFrames.length === 0) return;
+    if (isGenerating || !uploadedTexture || prerenderedFrames.base.length === 0) return;
 
     isGenerating = true;
     generateBtn.disabled = true;
@@ -302,31 +265,55 @@ async function generateGIF() {
     statusDiv.className = 'status processing';
     statusDiv.textContent = 'Generating GIF... This may take a moment.';
 
+    // Use bright magenta as transparent marker (very unlikely to appear in textures)
+    const TRANSPARENT_COLOR = { r: 255, g: 0, b: 254 };
+
     // Create GIF encoder
     const gif = new GIF({
         workers: 2,
         quality: 10,
         width: CANVAS_SIZE,
         height: CANVAS_SIZE,
-        workerScript: 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js',
-        transparent: 0x00FF00 // Transparent color
+        workerScript: 'gif.worker.js',
+        transparent: (TRANSPARENT_COLOR.r << 16) | (TRANSPARENT_COLOR.g << 8) | TRANSPARENT_COLOR.b,
+        repeat: 0  // 0 = loop forever
     });
 
     // Process all frames
-    for (let i = 0; i < baseFrames.length; i++) {
-        const tempCanvas = processAndDrawFrame(baseFrames[i], uploadedTexture);
+    for (let i = 0; i < prerenderedFrames.base.length; i++) {
+        const tempCanvas = processAndDrawFrame(uploadedTexture, i);
 
-        // Create output canvas at emoji size
+        // Create output canvas at emoji size with proper transparency handling
         const outputCanvas = document.createElement('canvas');
         outputCanvas.width = CANVAS_SIZE;
         outputCanvas.height = CANVAS_SIZE;
-        const outputCtx = outputCanvas.getContext('2d');
+        const outputCtx = outputCanvas.getContext('2d', { willReadFrequently: true });
+
+        // Draw the frame
         outputCtx.drawImage(tempCanvas, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+        // Manually handle transparency by replacing transparent pixels with magenta
+        const imageData = outputCtx.getImageData(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+        const data = imageData.data;
+
+        for (let j = 0; j < data.length; j += 4) {
+            const alpha = data[j + 3];
+
+            // If pixel is very transparent (alpha < 128), replace with bright magenta
+            if (alpha < 128) {
+                data[j] = TRANSPARENT_COLOR.r;
+                data[j + 1] = TRANSPARENT_COLOR.g;
+                data[j + 2] = TRANSPARENT_COLOR.b;
+                data[j + 3] = 255; // A (fully opaque)
+            }
+        }
+
+        outputCtx.putImageData(imageData, 0, 0);
 
         gif.addFrame(outputCtx, { copy: true, delay: FRAME_DELAY });
 
         // Update progress
-        const progress = Math.round((i + 1) / baseFrames.length * 50);
+        const progress = Math.round((i + 1) / prerenderedFrames.base.length * 50);
         statusDiv.textContent = `Processing frames... ${progress}%`;
 
         // Allow UI to update
@@ -343,6 +330,11 @@ async function generateGIF() {
 
     gif.on('finished', (blob) => {
         const url = URL.createObjectURL(blob);
+
+        // Display the generated GIF
+        resultGif.src = url;
+        resultPreview.style.display = 'block';
+
         downloadBtn.onclick = () => {
             const a = document.createElement('a');
             a.href = url;
@@ -358,5 +350,20 @@ async function generateGIF() {
         generateBtn.disabled = false;
     });
 
-    gif.render();
+    gif.on('abort', () => {
+        statusDiv.className = 'status';
+        statusDiv.textContent = 'GIF generation was aborted.';
+        isGenerating = false;
+        generateBtn.disabled = false;
+    });
+
+    try {
+        gif.render();
+    } catch (error) {
+        console.error('GIF render error:', error);
+        statusDiv.className = 'status';
+        statusDiv.textContent = 'Error generating GIF. Check console for details.';
+        isGenerating = false;
+        generateBtn.disabled = false;
+    }
 }

@@ -59,6 +59,6 @@ def generate_dancing_gif(texture_path, output_gif_path, frame_duration=150):
 if __name__ == "__main__":
     # Generate test GIF with jack-o-lantern texture
     generate_dancing_gif(
-        "Assets/clouds.bmp", "test_output/dancing_amogus.gif", frame_duration=75
+        "Assets/images copy.jpg", "test_output/dancing_amogus.gif", frame_duration=75
     )
     print("\nDone! Check test_output/dancing_amogus.gif")

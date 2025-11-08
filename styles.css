@@ -1,167 +1,199 @@
 * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+    Ubuntu, Cantarell, sans-serif;
+  background: url("Assets/clouds.bmp");
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
 }
 
 .container {
-    background: white;
-    border-radius: 20px;
-    padding: 40px;
-    max-width: 600px;
-    width: 100%;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  background: white;
+  border-radius: 5px;
+  padding: 40px;
+  max-width: 600px;
+  width: 100%;
 }
 
 h1 {
-    text-align: center;
-    color: #333;
-    margin-bottom: 10px;
-    font-size: 2.5em;
+  text-align: center;
+  color: #333;
+  margin-bottom: 10px;
+  font-size: 2.5em;
 }
 
 .subtitle {
-    text-align: center;
-    color: #666;
-    margin-bottom: 30px;
+  text-align: center;
+  color: #666;
+  margin-bottom: 30px;
 }
 
 .upload-section {
-    margin-bottom: 30px;
+  margin-bottom: 30px;
 }
 
 .upload-label {
-    cursor: pointer;
-    display: block;
+  cursor: pointer;
+  display: block;
 }
 
 .upload-area {
-    border: 3px dashed #667eea;
-    border-radius: 15px;
-    padding: 40px;
-    text-align: center;
-    transition: all 0.3s ease;
-    background: #f8f9ff;
+  border: 3px dashed #000000;
+  border-radius: 5px;
+  padding: 40px;
+  text-align: center;
+  transition: all 0.3s ease;
+  background: #f8f9ff;
 }
 
 .upload-area:hover {
-    border-color: #764ba2;
-    background: #f0f2ff;
-    transform: translateY(-2px);
+  border-color: #470984;
+  background: #f0f2ff;
+  transform: translateY(-2px);
 }
 
 .upload-area.drag-over {
-    border-color: #764ba2;
-    background: #e8ebff;
-    transform: scale(1.02);
+  border-color: #764ba2;
+  background: #e8ebff;
+  transform: scale(1.02);
 }
 
 .upload-area svg {
-    color: #667eea;
-    margin-bottom: 15px;
+  color: #667eea;
+  margin-bottom: 15px;
 }
 
 .upload-area p {
-    color: #333;
-    font-size: 1.1em;
-    margin-bottom: 5px;
+  color: #333;
+  font-size: 1.1em;
+  margin-bottom: 5px;
 }
 
 .upload-area .hint {
-    color: #999;
-    font-size: 0.9em;
+  color: #999;
+  font-size: 0.9em;
 }
 
 .preview-section {
-    text-align: center;
+  text-align: center;
 }
 
 .canvas-container {
-    background: #f8f9ff;
-    border-radius: 15px;
-    padding: 30px;
-    margin-bottom: 20px;
-    display: inline-block;
+  background: #f8f9ff;
+  border-radius: 5px;
+  padding: 30px;
+  margin-bottom: 20px;
+  display: inline-block;
 }
 
 #preview-canvas {
-    border: 2px solid #667eea;
-    border-radius: 10px;
-    background: white;
-    image-rendering: pixelated;
-    image-rendering: crisp-edges;
+  border: 2px solid #667eea;
+  border-radius: 5px;
+  background: white;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
 }
 
 .controls {
-    display: flex;
-    gap: 10px;
-    justify-content: center;
-    margin-bottom: 20px;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 20px;
 }
 
 .btn {
-    padding: 12px 30px;
-    border: none;
-    border-radius: 10px;
-    font-size: 1em;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
+  padding: 12px 30px;
+  border: none;
+
+  font-size: 1em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
 .btn-primary {
-    background: #667eea;
-    color: white;
+  background: #011779;
+  color: white;
 }
 
 .btn-primary:hover {
-    background: #5568d3;
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+  background: #3b4fbd;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
 }
 
 .btn-primary:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-    transform: none;
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .btn-success {
-    background: #48bb78;
-    color: white;
+  background: rgb(0, 113, 47);
+  color: white;
 }
 
 .btn-success:hover {
-    background: #38a169;
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(72, 187, 120, 0.4);
+  background: rgb(72, 187, 120);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(72, 187, 120, 0.4);
 }
 
 .status {
-    color: #666;
-    font-size: 0.95em;
-    min-height: 20px;
-    padding: 10px;
-    border-radius: 8px;
-    background: #f8f9ff;
+  color: #666;
+  font-size: 0.95em;
+  min-height: 20px;
+  padding: 10px;
+  border-radius: 8px;
+  background: #f8f9ff;
 }
 
 .status.processing {
-    color: #667eea;
-    font-weight: 600;
+  color: #667eea;
+  font-weight: 600;
 }
 
 .status.success {
-    color: #48bb78;
-    font-weight: 600;
+  color: #48bb78;
+  font-weight: 600;
+}
+
+.result-preview {
+  margin-top: 30px;
+  text-align: center;
+}
+
+.result-preview h3 {
+  color: #333;
+  margin-bottom: 15px;
+  font-size: 1.2em;
+}
+
+.checkered-bg {
+  display: inline-block;
+  padding: 20px;
+  border-radius: 15px;
+  background-color: #f0f0f0;
+  background-image: linear-gradient(45deg, #ccc 25%, transparent 25%),
+    linear-gradient(-45deg, #ccc 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #ccc 75%),
+    linear-gradient(-45deg, transparent 75%, #ccc 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+}
+
+.checkered-bg img {
+  display: block;
+  width: 128px;
+  height: 128px;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
 }

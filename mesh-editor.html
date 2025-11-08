@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mesh Deformation Editor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #2a2a2a;
+            color: #fff;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #4CAF50;
+        }
+        .controls {
+            background: #333;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .controls label {
+            display: inline-block;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        .controls select, .controls button, .controls input {
+            padding: 8px 16px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            background: #555;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .controls button:hover {
+            background: #666;
+        }
+        .canvas-container {
+            position: relative;
+            display: inline-block;
+            background: #111;
+            border: 2px solid #555;
+            border-radius: 8px;
+        }
+        canvas {
+            display: block;
+        }
+        .control-point {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: rgba(76, 175, 80, 0.8);
+            border: 2px solid #fff;
+            border-radius: 50%;
+            cursor: move;
+            transform: translate(-50%, -50%);
+        }
+        .control-point:hover {
+            background: rgba(255, 235, 59, 0.9);
+        }
+        .instructions {
+            background: #333;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .instructions h3 {
+            margin-top: 0;
+            color: #4CAF50;
+        }
+        .instructions ol {
+            line-height: 1.8;
+        }
+        .json-output {
+            background: #000;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        .grid-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            opacity: 0.3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 Mesh Deformation Editor</h1>
+
+        <div class="controls">
+            <div>
+                <label for="frameSelect">Frame:</label>
+                <select id="frameSelect">
+                    <option value="1">Frame 1</option>
+                    <option value="2">Frame 2</option>
+                    <option value="3">Frame 3</option>
+                    <option value="4">Frame 4</option>
+                    <option value="5">Frame 5</option>
+                    <option value="6">Frame 6</option>
+                </select>
+
+                <label for="gridSize">Grid Size:</label>
+                <select id="gridSize">
+                    <option value="5">5x5</option>
+                    <option value="8">8x8</option>
+                    <option value="10" selected>10x10</option>
+                    <option value="12">12x12</option>
+                    <option value="15">15x15</option>
+                </select>
+
+                <label>
+                    <input type="checkbox" id="showGrid" checked> Show Grid
+                </label>
+            </div>
+
+            <div>
+                <button id="resetBtn">Reset Deformation</button>
+                <button id="copyBtn">Copy to All Frames</button>
+                <button id="exportBtn">Export JSON</button>
+                <button id="importBtn">Import JSON</button>
+            </div>
+        </div>
+
+        <div class="canvas-container" id="canvasContainer">
+            <canvas id="gridCanvas" class="grid-overlay"></canvas>
+            <canvas id="mainCanvas"></canvas>
+        </div>
+
+        <div class="instructions">
+            <h3>Instructions</h3>
+            <ol>
+                <li><strong>Select a frame</strong> from the dropdown above</li>
+                <li><strong>Drag the green control points</strong> to deform the mesh - imagine you're deforming a grid laid over the character's body</li>
+                <li>The mesh will deform the texture to match the body contours</li>
+                <li><strong>Click "Export JSON"</strong> when done to get the deformation data</li>
+                <li>Save the JSON output to <code>deformations.js</code> in your project</li>
+            </ol>
+
+            <h3>Tips:</h3>
+            <ul>
+                <li>Start with subtle deformations - less is more!</li>
+                <li>Focus on making the texture follow the body's curves and depth</li>
+                <li>The center area (where the texture is applied) needs the most attention</li>
+                <li>Edge areas can remain mostly undeformed</li>
+            </ul>
+
+            <h3>JSON Output:</h3>
+            <div class="json-output" id="jsonOutput">Click "Export JSON" to generate deformation data...</div>
+        </div>
+    </div>
+
+    <script src="mesh-deform-simple.js"></script>
+    <script>
+        const CANVAS_SIZE = 480;
+        const FRAME_PATHS = [
+            'masks/frame_1_base.png',
+            'masks/frame_2_base.png',
+            'masks/frame_3_base.png',
+            'masks/frame_4_base.png',
+            'masks/frame_5_base.png',
+            'masks/frame_6_base.png',
+        ];
+
+        // State
+        let currentFrame = 1;
+        let gridResolution = 10;
+        let frameDeformations = {};
+        let controlPoints = [];
+        let draggedPoint = null;
+        let baseImage = null;
+
+        // Initialize deformations for all frames
+        for (let i = 1; i <= 6; i++) {
+            frameDeformations[i] = [];
+        }
+
+        // DOM elements
+        const mainCanvas = document.getElementById('mainCanvas');
+        const gridCanvas = document.getElementById('gridCanvas');
+        const canvasContainer = document.getElementById('canvasContainer');
+        const frameSelect = document.getElementById('frameSelect');
+        const gridSizeSelect = document.getElementById('gridSize');
+        const showGridCheckbox = document.getElementById('showGrid');
+        const jsonOutput = document.getElementById('jsonOutput');
+
+        mainCanvas.width = mainCanvas.height = CANVAS_SIZE;
+        gridCanvas.width = gridCanvas.height = CANVAS_SIZE;
+
+        const ctx = mainCanvas.getContext('2d');
+        const gridCtx = gridCanvas.getContext('2d');
+
+        // Load current frame
+        function loadFrame(frameNum) {
+            const img = new Image();
+            img.onload = () => {
+                baseImage = img;
+                ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+                ctx.drawImage(img, 0, 0);
+                createControlPoints();
+                drawGrid();
+            };
+            img.src = FRAME_PATHS[frameNum - 1];
+        }
+
+        // Create control points
+        function createControlPoints() {
+            // Remove existing points
+            document.querySelectorAll('.control-point').forEach(el => el.remove());
+            controlPoints = [];
+
+            const res = gridResolution;
+            const spacing = CANVAS_SIZE / res;
+
+            for (let y = 0; y <= res; y++) {
+                for (let x = 0; x <= res; x++) {
+                    const px = x * spacing;
+                    const py = y * spacing;
+
+                    const point = document.createElement('div');
+                    point.className = 'control-point';
+                    point.style.left = px + 'px';
+                    point.style.top = py + 'px';
+                    point.dataset.gridX = x;
+                    point.dataset.gridY = y;
+                    point.dataset.baseX = px;
+                    point.dataset.baseY = py;
+
+                    // Apply saved deformation if exists
+                    const saved = frameDeformations[currentFrame].find(
+                        d => Math.round(d.x * res) === x && Math.round(d.y * res) === y
+                    );
+                    if (saved) {
+                        point.style.left = (px + saved.dx * CANVAS_SIZE / 2) + 'px';
+                        point.style.top = (py + saved.dy * CANVAS_SIZE / 2) + 'px';
+                    }
+
+                    canvasContainer.appendChild(point);
+                    controlPoints.push(point);
+
+                    // Add drag handlers
+                    point.addEventListener('mousedown', startDrag);
+                }
+            }
+        }
+
+        // Draw grid overlay
+        function drawGrid() {
+            gridCtx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+            if (!showGridCheckbox.checked) {
+                gridCanvas.style.display = 'none';
+                return;
+            }
+
+            gridCanvas.style.display = 'block';
+            gridCtx.strokeStyle = 'rgba(76, 175, 80, 0.5)';
+            gridCtx.lineWidth = 1;
+
+            const res = gridResolution;
+            const spacing = CANVAS_SIZE / res;
+
+            // Draw vertical lines
+            for (let x = 0; x <= res; x++) {
+                const px = x * spacing;
+                gridCtx.beginPath();
+                gridCtx.moveTo(px, 0);
+                gridCtx.lineTo(px, CANVAS_SIZE);
+                gridCtx.stroke();
+            }
+
+            // Draw horizontal lines
+            for (let y = 0; y <= res; y++) {
+                const py = y * spacing;
+                gridCtx.beginPath();
+                gridCtx.moveTo(0, py);
+                gridCtx.lineTo(CANVAS_SIZE, py);
+                gridCtx.stroke();
+            }
+        }
+
+        // Drag handlers
+        function startDrag(e) {
+            draggedPoint = e.target;
+            e.preventDefault();
+        }
+
+        document.addEventListener('mousemove', (e) => {
+            if (!draggedPoint) return;
+
+            const rect = canvasContainer.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            // Constrain to canvas
+            const clampedX = Math.max(0, Math.min(CANVAS_SIZE, x));
+            const clampedY = Math.max(0, Math.min(CANVAS_SIZE, y));
+
+            draggedPoint.style.left = clampedX + 'px';
+            draggedPoint.style.top = clampedY + 'px';
+
+            updateDeformation();
+        });
+
+        document.addEventListener('mouseup', () => {
+            draggedPoint = null;
+        });
+
+        // Update deformation data
+        function updateDeformation() {
+            const deformations = [];
+            const res = gridResolution;
+
+            controlPoints.forEach(point => {
+                const gridX = parseInt(point.dataset.gridX);
+                const gridY = parseInt(point.dataset.gridY);
+                const baseX = parseFloat(point.dataset.baseX);
+                const baseY = parseFloat(point.dataset.baseY);
+
+                const currentX = parseFloat(point.style.left);
+                const currentY = parseFloat(point.style.top);
+
+                const dx = (currentX - baseX) / CANVAS_SIZE * 2; // Normalize to -1 to 1
+                const dy = (currentY - baseY) / CANVAS_SIZE * 2;
+
+                // Only store if there's actual deformation
+                if (Math.abs(dx) > 0.001 || Math.abs(dy) > 0.001) {
+                    deformations.push({
+                        x: gridX / res,
+                        y: gridY / res,
+                        dx,
+                        dy
+                    });
+                }
+            });
+
+            frameDeformations[currentFrame] = deformations;
+        }
+
+        // Event listeners
+        frameSelect.addEventListener('change', (e) => {
+            currentFrame = parseInt(e.target.value);
+            loadFrame(currentFrame);
+        });
+
+        gridSizeSelect.addEventListener('change', (e) => {
+            gridResolution = parseInt(e.target.value);
+            createControlPoints();
+            drawGrid();
+        });
+
+        showGridCheckbox.addEventListener('change', drawGrid);
+
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            frameDeformations[currentFrame] = [];
+            createControlPoints();
+        });
+
+        document.getElementById('copyBtn').addEventListener('click', () => {
+            const current = frameDeformations[currentFrame];
+            for (let i = 1; i <= 6; i++) {
+                frameDeformations[i] = JSON.parse(JSON.stringify(current));
+            }
+            alert('Deformation copied to all frames!');
+        });
+
+        document.getElementById('exportBtn').addEventListener('click', () => {
+            const output = `// Mesh deformation data for each frame
+// Generated by mesh-editor.html
+
+function getFrameDeformation(frameIndex) {
+    const deformations = ${JSON.stringify(frameDeformations, null, 2)};
+    return deformations[frameIndex + 1] || [];
+}
+`;
+            jsonOutput.textContent = output;
+
+            // Also copy to clipboard
+            navigator.clipboard.writeText(output).then(() => {
+                alert('Deformation data copied to clipboard! Save it to deformations.js');
+            });
+        });
+
+        document.getElementById('importBtn').addEventListener('click', () => {
+            const json = prompt('Paste deformation JSON:');
+            if (json) {
+                try {
+                    const data = JSON.parse(json);
+                    frameDeformations = data;
+                    loadFrame(currentFrame);
+                    alert('Deformation data imported!');
+                } catch (e) {
+                    alert('Invalid JSON: ' + e.message);
+                }
+            }
+        });
+
+        // Initialize
+        loadFrame(1);
+    </script>
+</body>
+</html>

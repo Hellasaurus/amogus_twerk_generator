@@ -1,6 +1,6 @@
 // Configuration
 const CANVAS_SIZE = 128; // Slack emoji size
-const FRAME_DELAY = 75; // ms (doubled framerate from 150ms)
+const FRAME_DELAY = 40; // ms (25 fps to match original)
 const FRAME_COUNT = 6;
 const SOURCE_CROP = 24; // Pixels to crop from each edge of source (480x480) for tighter framing
 
@@ -58,12 +58,18 @@ const previewCanvas = document.getElementById("preview-canvas");
 const generateBtn = document.getElementById("generate-btn");
 const downloadBtn = document.getElementById("download-btn");
 const statusDiv = document.getElementById("status");
-const resultPreview = document.getElementById("result-preview");
-const resultGif = document.getElementById("result-gif");
+const generatedGifsSection = document.getElementById("generated-gifs-section");
+const gifGrid = document.getElementById("gif-grid");
 const backpackColorPicker = document.getElementById("backpack-color");
 const backpackColorLabel = document.getElementById("backpack-color-label");
 
 const ctx = previewCanvas.getContext("2d", { willReadFrequently: true });
+
+// LocalStorage keys
+const STORAGE_KEYS = {
+  GIFS: "amogusTwerk_generatedGifs",
+  MASKS: "amogusTwerk_cachedMasks",
+};
 
 // Load pre-rendered masks on startup
 loadPrerenderedFrames();
@@ -71,10 +77,16 @@ loadPrerenderedFrames();
 // Initialize backpack color label
 updateBackpackColorLabel();
 
+// Load cached GIFs on startup
+loadCachedGifs();
+
 async function loadPrerenderedFrames() {
   statusDiv.textContent = "Loading pre-rendered frames and masks...";
 
   try {
+    // Try to load masks from cache first
+    const cachedMasks = loadMasksFromCache();
+
     // Helper to load images
     const loadImage = (path) => {
       return new Promise((resolve, reject) => {
@@ -95,20 +107,30 @@ async function loadPrerenderedFrames() {
       });
     };
 
-    // Load all pre-rendered data in parallel
-    const loadPromises = {
-      base: Promise.all(MASK_PATHS.base.map(loadImage)),
-      mask: Promise.all(MASK_PATHS.mask.map(loadImage)),
-      lines: Promise.all(MASK_PATHS.lines.map(loadImage)),
-      shading: Promise.all(MASK_PATHS.shading.map(loadImage)),
-      backpack: Promise.all(MASK_PATHS.backpack.map(loadImageOptional)),
-    };
+    // Load from cache or fetch fresh
+    if (cachedMasks) {
+      console.log("Loading masks from cache");
+      prerenderedFrames = cachedMasks;
+    } else {
+      console.log("Fetching masks from server");
+      // Load all pre-rendered data in parallel
+      const loadPromises = {
+        base: Promise.all(MASK_PATHS.base.map(loadImage)),
+        mask: Promise.all(MASK_PATHS.mask.map(loadImage)),
+        lines: Promise.all(MASK_PATHS.lines.map(loadImage)),
+        shading: Promise.all(MASK_PATHS.shading.map(loadImage)),
+        backpack: Promise.all(MASK_PATHS.backpack.map(loadImageOptional)),
+      };
 
-    prerenderedFrames.base = await loadPromises.base;
-    prerenderedFrames.mask = await loadPromises.mask;
-    prerenderedFrames.lines = await loadPromises.lines;
-    prerenderedFrames.shading = await loadPromises.shading;
-    prerenderedFrames.backpack = await loadPromises.backpack;
+      prerenderedFrames.base = await loadPromises.base;
+      prerenderedFrames.mask = await loadPromises.mask;
+      prerenderedFrames.lines = await loadPromises.lines;
+      prerenderedFrames.shading = await loadPromises.shading;
+      prerenderedFrames.backpack = await loadPromises.backpack;
+
+      // Cache the masks for future visits
+      cacheMasks(prerenderedFrames);
+    }
 
     // Initialize mesh deformer if enabled (at cropped size to match mesh editor)
     if (ENABLE_MESH_DEFORMATION) {
@@ -188,6 +210,140 @@ function invalidateFrameCache() {
   console.log("Frame cache invalidated");
 }
 
+// ========== LOCALSTORAGE CACHING ==========
+
+function cacheMasks(masks) {
+  try {
+    // Convert image elements to data URLs for storage
+    const maskData = {
+      base: [],
+      mask: [],
+      lines: [],
+      shading: [],
+      backpack: [],
+    };
+
+    // We can't directly store Image objects, so we'll just skip caching masks
+    // and rely on browser HTTP cache instead
+    console.log("Masks will be cached by browser HTTP cache");
+  } catch (error) {
+    console.warn("Failed to cache masks:", error);
+  }
+}
+
+function loadMasksFromCache() {
+  // Browser HTTP cache will handle this
+  return null;
+}
+
+function saveCachedGifs(gifs) {
+  try {
+    localStorage.setItem(STORAGE_KEYS.GIFS, JSON.stringify(gifs));
+    console.log(`Saved ${gifs.length} GIFs to cache`);
+  } catch (error) {
+    console.warn("Failed to save GIFs to cache:", error);
+    // If quota exceeded, clear old GIFs
+    if (error.name === "QuotaExceededError") {
+      console.log("Storage quota exceeded, clearing oldest GIFs");
+      const reducedGifs = gifs.slice(-5); // Keep only last 5
+      try {
+        localStorage.setItem(STORAGE_KEYS.GIFS, JSON.stringify(reducedGifs));
+      } catch (e) {
+        console.error("Still failed after reducing GIFs:", e);
+      }
+    }
+  }
+}
+
+function loadCachedGifs() {
+  try {
+    const cached = localStorage.getItem(STORAGE_KEYS.GIFS);
+    if (!cached) return;
+
+    const gifs = JSON.parse(cached);
+    console.log(`Loaded ${gifs.length} cached GIFs`);
+
+    if (gifs.length > 0) {
+      generatedGifsSection.style.display = "block";
+      gifs.forEach((gifData) => {
+        addGifToGrid(gifData.dataUrl, gifData.timestamp);
+      });
+    }
+  } catch (error) {
+    console.warn("Failed to load cached GIFs:", error);
+  }
+}
+
+function addGifToGrid(dataUrl, timestamp = Date.now()) {
+  // Show the grid section
+  generatedGifsSection.style.display = "block";
+
+  // Create GIF item
+  const gifItem = document.createElement("div");
+  gifItem.className = "gif-item";
+  gifItem.dataset.timestamp = timestamp;
+
+  // Create checkered background with image
+  const checkeredBg = document.createElement("div");
+  checkeredBg.className = "checkered-bg";
+
+  const img = document.createElement("img");
+  img.src = dataUrl;
+  img.alt = "Generated GIF";
+
+  // Click to download
+  checkeredBg.onclick = (e) => {
+    // Don't download if clicking the delete button
+    if (e.target.classList.contains("delete-gif-btn")) return;
+
+    const a = document.createElement("a");
+    a.href = dataUrl;
+    a.download = `dance-emoji-${timestamp}.gif`;
+    a.click();
+  };
+
+  // Create download icon overlay
+  const downloadOverlay = document.createElement("div");
+  downloadOverlay.className = "download-icon-overlay";
+  const downloadIcon = document.createElement("img");
+  downloadIcon.src = "download-arrow.svg";
+  downloadIcon.alt = "Download";
+  downloadOverlay.appendChild(downloadIcon);
+
+  // Create delete button (X in circle)
+  const deleteBtn = document.createElement("div");
+  deleteBtn.className = "delete-gif-btn";
+  deleteBtn.title = "Delete GIF";
+  deleteBtn.onclick = (e) => {
+    e.stopPropagation(); // Prevent download when clicking delete
+    gifItem.remove();
+    updateCachedGifs();
+    // Hide section if no more GIFs
+    if (gifGrid.children.length === 0) {
+      generatedGifsSection.style.display = "none";
+    }
+  };
+
+  checkeredBg.appendChild(img);
+  checkeredBg.appendChild(downloadOverlay);
+  checkeredBg.appendChild(deleteBtn);
+  gifItem.appendChild(checkeredBg);
+
+  // Add to grid (prepend to show newest first)
+  gifGrid.insertBefore(gifItem, gifGrid.firstChild);
+}
+
+function updateCachedGifs() {
+  // Get all current GIFs from the grid
+  const gifItems = Array.from(gifGrid.querySelectorAll(".gif-item"));
+  const gifs = gifItems.map((item) => ({
+    dataUrl: item.querySelector("img").src,
+    timestamp: parseInt(item.dataset.timestamp),
+  }));
+
+  saveCachedGifs(gifs);
+}
+
 uploadArea.addEventListener("dragover", (e) => {
   e.preventDefault();
   uploadArea.classList.add("drag-over");
@@ -222,7 +378,6 @@ function loadTexture(file) {
       invalidateFrameCache(); // Clear cache when new texture is loaded
       previewSection.style.display = "block";
       downloadBtn.style.display = "none";
-      resultPreview.style.display = "none"; // Hide previous result
       statusDiv.textContent =
         'Texture loaded - Click "Generate" to export (suitable for Slack emotes)';
 
@@ -483,15 +638,16 @@ function processAndDrawFrame(texture, frameIndex = 0) {
 
     // Check if this pixel is in the mask (using red channel, since it's grayscale)
     if (maskData[i] > 128) {
-      // Get shading value (0-255, maps to 0.4-1.0)
-      // 102 = 0.4, 255 = 1.0
+      // Get shading value (0-255, maps to 0.3-1.2)
+      // 0 = 0.3 (deep shadows), 255 = 1.2 (bright highlights)
       const shadingValue = shadingData[i];
-      const shade = (shadingValue / 255) * 0.6 + 0.4; // Map 0-255 to 0.4-1.0
+      const shade = (shadingValue / 255) * 0.9 + 0.3; // Map 0-255 to 0.3-1.2
 
       // Apply texture with shading
-      resultData[i] = Math.floor(texData[i] * shade); // R
-      resultData[i + 1] = Math.floor(texData[i + 1] * shade); // G
-      resultData[i + 2] = Math.floor(texData[i + 2] * shade); // B
+      // Clamp to 0-255 to prevent overflow
+      resultData[i] = Math.min(255, Math.floor(texData[i] * shade)); // R
+      resultData[i + 1] = Math.min(255, Math.floor(texData[i + 1] * shade)); // G
+      resultData[i + 2] = Math.min(255, Math.floor(texData[i + 2] * shade)); // B
       resultData[i + 3] = 255; // A (make opaque, since base frame is now transparent here)
     }
 
@@ -617,18 +773,22 @@ async function generateGIF() {
   gif.on("finished", (blob) => {
     const url = URL.createObjectURL(blob);
 
-    // Display the generated GIF
-    resultGif.src = url;
-    resultPreview.style.display = "block";
+    // Convert blob to data URL for storage
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const dataUrl = reader.result;
+      const timestamp = Date.now();
 
-    downloadBtn.onclick = () => {
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "dance-emoji.gif";
-      a.click();
+      // Add to grid
+      addGifToGrid(dataUrl, timestamp);
+
+      // Update cache
+      updateCachedGifs();
     };
+    reader.readAsDataURL(blob);
 
-    downloadBtn.style.display = "inline-block";
+    // Hide download button since we now have individual download buttons
+    downloadBtn.style.display = "none";
 
     // Hide status when done
     statusDiv.className = "status";

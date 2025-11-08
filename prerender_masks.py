@@ -23,20 +23,15 @@ from process_frames import (
 
 def convert_shading_to_uint8(shading_map):
     """
-    Convert float shading map (0.0-1.0) to uint8 (0-255) for storage
-    The shading map uses range 0.4-1.0, which we map to 102-255
+    Convert float shading map (0.3-1.2) to uint8 (0-255) for storage
+    The shading map uses range 0.3-1.2, which we map to appropriate uint8 values
     """
     shading_array = np.array(shading_map)
 
-    # The shading map from extract_shading_map is already in 0.4-1.0 range
-    # Convert to 0-255 range: (value - 0.4) / 0.6 * 255
-    # But we need to handle the default 1.0 values outside the mask
-    uint8_shading = np.zeros_like(shading_array, dtype=np.uint8)
-
-    # Values of 1.0 (outside mask) -> 255
-    # Values in 0.4-1.0 range -> proportional mapping to 102-255
-    uint8_shading = ((shading_array - 0.4) / 0.6 * 255).astype(np.uint8)
-    uint8_shading = np.clip(uint8_shading, 102, 255)
+    # The shading map from extract_shading_map is in 0.3-1.2 range
+    # Map 0.3 -> 0 (deepest shadows) and 1.2 -> 255 (brightest highlights)
+    uint8_shading = ((shading_array - 0.3) / 0.9 * 255).astype(np.uint8)
+    uint8_shading = np.clip(uint8_shading, 0, 255)
 
     return uint8_shading
 

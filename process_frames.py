@@ -150,8 +150,11 @@ def extract_shading_map(base_img, mask):
             shading_map[mask_bool] = (luminance[mask_bool] - min_luminance) / (
                 max_luminance - min_luminance
             )
-            # Clamp to reasonable range (don't go too dark)
-            shading_map[mask_bool] = np.clip(shading_map[mask_bool], 0.4, 1.0)
+            # Remap to range 0.3-1.2 for deeper shadows and bright highlights
+            # Dark areas: 0.3 (30% of original - visible shadows)
+            # Bright areas: 1.2 (120% - slightly enhanced highlights)
+            shading_map[mask_bool] = shading_map[mask_bool] * 0.9 + 0.3
+            shading_map[mask_bool] = np.clip(shading_map[mask_bool], 0.3, 1.2)
         else:
             shading_map[mask_bool] = 1.0
 

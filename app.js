@@ -4,6 +4,11 @@ const FRAME_DELAY = 75; // ms (doubled framerate from 150ms)
 const FRAME_COUNT = 6;
 const SOURCE_CROP = 24; // Pixels to crop from each edge of source (480x480) for tighter framing
 
+// ========== MESH DEFORMATION FEATURE FLAG ==========
+// Set to false to disable mesh deformation for production
+const ENABLE_MESH_DEFORMATION = true;
+// ===================================================
+
 // Pre-rendered mask paths
 const MASK_PATHS = {
     base: Array.from({length: FRAME_COUNT}, (_, i) => `masks/frame_${i+1}_base.png`),
@@ -22,6 +27,7 @@ let prerenderedFrames = {
 let uploadedTexture = null;
 let isGenerating = false;
 let previewAnimationInterval = null; // For animating the preview
+let meshDeformer = null; // WebGL mesh deformer (only if ENABLE_MESH_DEFORMATION is true)
 
 // DOM Elements
 const textureUpload = document.getElementById('texture-upload');
@@ -65,6 +71,18 @@ async function loadPrerenderedFrames() {
         prerenderedFrames.mask = await loadPromises.mask;
         prerenderedFrames.lines = await loadPromises.lines;
         prerenderedFrames.shading = await loadPromises.shading;
+
+        // Initialize mesh deformer if enabled
+        if (ENABLE_MESH_DEFORMATION) {
+            try {
+                const sourceSize = prerenderedFrames.base[0].width;
+                meshDeformer = new MeshDeformer(sourceSize, sourceSize, 10);
+                console.log('Mesh deformer initialized');
+            } catch (error) {
+                console.warn('Failed to initialize mesh deformer:', error);
+                meshDeformer = null;
+            }
+        }
 
         statusDiv.textContent = 'Upload a texture to get started!';
         console.log(`Loaded ${prerenderedFrames.base.length} frames with pre-rendered masks`);
@@ -148,6 +166,27 @@ function stopPreviewAnimation() {
     }
 }
 
+// Helper function to center-crop texture to square
+function centerCropTextureToSquare(image, targetSize) {
+    const size = Math.min(image.width, image.height);
+    const offsetX = (image.width - size) / 2;
+    const offsetY = (image.height - size) / 2;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = targetSize;
+    canvas.height = targetSize;
+    const ctx = canvas.getContext('2d');
+
+    // Draw the center square portion of the image
+    ctx.drawImage(
+        image,
+        offsetX, offsetY, size, size,  // Source: center square
+        0, 0, targetSize, targetSize   // Dest: fill canvas
+    );
+
+    return canvas;
+}
+
 // Image processing functions using pre-rendered masks
 function processAndDrawFrame(texture, frameIndex = 0) {
     // Get pre-rendered data for this frame
@@ -159,6 +198,9 @@ function processAndDrawFrame(texture, frameIndex = 0) {
     // Calculate cropped dimensions
     const sourceSize = baseFrame.width;
     const croppedSize = sourceSize - (SOURCE_CROP * 2);
+
+    // Center-crop texture to square at source size before any processing
+    const squareTexture = centerCropTextureToSquare(texture, sourceSize);
 
     // Create temp canvas for processing at cropped size
     const tempCanvas = document.createElement('canvas');
@@ -174,12 +216,41 @@ function processAndDrawFrame(texture, frameIndex = 0) {
     );
     const baseImageData = tempCtx.getImageData(0, 0, croppedSize, croppedSize);
 
+    // ========== MESH DEFORMATION (OPTIONAL) ==========
+    // Apply mesh deformation to texture if enabled
+    let textureToComposite = squareTexture;
+    if (ENABLE_MESH_DEFORMATION && meshDeformer && typeof getFrameDeformation === 'function') {
+        try {
+            const deformations = getFrameDeformation(frameIndex);
+            if (deformations && deformations.length > 0) {
+                // Convert pixel-based deformations to normalized coordinates
+                // Deformations from mesh-editor.html are in pixel space (based on croppedSize)
+                const normalizedDeformations = deformations.map(d => ({
+                    x: d.x,
+                    y: d.y,
+                    dx: d.dx / croppedSize * 2,  // Convert pixels to -1 to 1 range
+                    dy: d.dy / croppedSize * 2
+                }));
+
+                // Apply deformation to the square texture
+                meshDeformer.applyDeformation(normalizedDeformations);
+                const deformedCanvas = meshDeformer.render(squareTexture);
+                textureToComposite = deformedCanvas;
+
+                console.log(`Applied mesh deformation to frame ${frameIndex} (${deformations.length} points)`);
+            }
+        } catch (error) {
+            console.warn(`Mesh deformation failed for frame ${frameIndex}:`, error);
+        }
+    }
+    // ==================================================
+
     // Draw texture to get its image data (cropped)
     tempCtx.clearRect(0, 0, croppedSize, croppedSize);
     tempCtx.drawImage(
-        texture,
-        0, 0, texture.width, texture.height,  // Source: entire texture
-        0, 0, croppedSize, croppedSize        // Dest: scaled to cropped size
+        textureToComposite,
+        SOURCE_CROP, SOURCE_CROP, croppedSize, croppedSize,  // Source: crop from deformed texture
+        0, 0, croppedSize, croppedSize                        // Dest: fill canvas
     );
     const textureImageData = tempCtx.getImageData(0, 0, croppedSize, croppedSize);
 

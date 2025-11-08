@@ -52,11 +52,26 @@ This will generate 24 files in the `masks/` directory:
 1. **Load Pre-rendered Assets**: All masks, shading maps, and base frames are loaded on page load
 2. **Texture Upload**: User uploads their custom texture image
 3. **Texture Composition**: For each frame:
+   - (Optional) Mesh deformation is applied to make texture appear 3D
    - Texture is scaled to 480x480 to match frame size
    - Texture pixels are multiplied by shading map values (preserving original lighting/shadows)
    - Textured pixels are composited onto base frame using the yellow mask
    - Black outlines are overlaid on top to ensure clean edges
 4. **GIF Encoding**: All frames are combined into an animated GIF at 128x128px
+
+### Optional: Mesh Deformation
+
+For more realistic 3D effects, you can add mesh deformation:
+- Use `mesh-editor.html` to visually create deformations
+- Upload test textures and preview in real-time
+- Makes textures appear to wrap around the body
+- Can be easily disabled for production (see `BUILD_PRODUCTION.md`)
+
+### Texture Handling
+
+- **Center-cropped to square** - Preserves aspect ratio, no distortion
+- **24-pixel crop** applied to frames for larger character
+- Any aspect ratio supported - center of image is always visible
 
 ## Technical Details
 

@@ -94,6 +94,26 @@ h1 {
   display: inline-block;
 }
 
+.backpack-color-section {
+  background: #f8f9ff;
+  border-radius: 5px;
+  padding: 20px;
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.backpack-color-section label {
+  color: #333;
+}
+
+.backpack-color-section input[type="color"] {
+  transition: transform 0.2s ease;
+}
+
+.backpack-color-section input[type="color"]:hover {
+  transform: scale(1.05);
+}
+
 #preview-canvas {
   border: 2px solid #667eea;
   border-radius: 5px;

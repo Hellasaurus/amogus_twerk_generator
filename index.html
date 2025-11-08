@@ -37,6 +37,27 @@
           <canvas id="preview-canvas" width="128" height="128"></canvas>
         </div>
 
+        <div class="backpack-color-section">
+          <label id="backpack-color-label" style="display: block; margin-bottom: 8px; font-weight: 500;">
+            Backpack Color: Transparent
+          </label>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <input
+              type="color"
+              id="backpack-color"
+              value="#000000"
+              style="width: 60px; height: 40px; border: 2px solid #ddd; border-radius: 4px; cursor: pointer;"
+            />
+            <button
+              id="clear-backpack-color"
+              class="btn"
+              style="padding: 8px 16px; font-size: 14px;"
+            >
+              <span style="display: inline-block; width: 16px; height: 16px; background: white; border: 1px solid #666; border-radius: 2px; vertical-align: middle; margin-right: 4px; position: relative;"><span style="position: absolute; top: 50%; left: -2px; right: -2px; height: 1.5px; background: #e53e3e; transform: rotate(-45deg);"></span></span>Transparent
+            </button>
+          </div>
+        </div>
+
         <div class="controls">
           <button id="generate-btn" class="btn btn-primary">Generate!</button>
           <button
@@ -44,7 +65,7 @@
             class="btn btn-success"
             style="display: none"
           >
-            Download
+            Download .gif
           </button>
         </div>
 

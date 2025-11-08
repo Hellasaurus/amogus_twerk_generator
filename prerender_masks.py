@@ -69,13 +69,35 @@ def prerender_frame_masks(frame_path, output_dir, frame_num):
     Image.fromarray(shading_uint8).save(shading_path)
     print(f"  Saved shading map: {shading_path}")
 
-    # 4. Create base frame with green screen removed (for transparent background)
+    # 4. Load backpack mask if it exists (frame 4 does not have visible backpack)
+    backpack_mask_path = os.path.join(output_dir, f'frame_{frame_num}_backpack.png')
+    backpack_mask = None
+    if os.path.exists(backpack_mask_path):
+        backpack_mask = np.array(Image.open(backpack_mask_path).convert('L'))
+        print(f"  Found backpack mask: {backpack_mask_path}")
+    else:
+        print(f"  No backpack mask for frame {frame_num}")
+
+    # 5. Create base frame with green screen removed (for transparent background)
     frame_no_green = remove_green_screen(frame)
     # Apply aggressive green removal for edges
     frame_no_green = remove_green_screen(frame_no_green, aggressive=True)
+
+    # OPTIMIZATION: Make body, lines, and backpack areas transparent since they'll be regenerated
+    # This significantly reduces file size while keeping only detail pixels (visor, accessories, etc.)
+    frame_array = np.array(frame_no_green)
+    mask_array = np.array(yellow_mask)
+    body_or_lines = (mask_array > 128) | (black_lines > 128)
+
+    # Also make backpack area transparent if mask exists
+    if backpack_mask is not None:
+        body_or_lines = body_or_lines | (backpack_mask > 128)
+
+    frame_array[body_or_lines, 3] = 0  # Make transparent
+
     base_path = os.path.join(output_dir, f'frame_{frame_num}_base.png')
-    frame_no_green.save(base_path)
-    print(f"  Saved base frame: {base_path}")
+    Image.fromarray(frame_array).save(base_path)
+    print(f"  Saved base frame (optimized): {base_path}")
 
 
 def main():
@@ -108,10 +130,11 @@ def main():
     print("Done! All masks have been pre-rendered.")
     print(f"Output directory: {output_dir}/")
     print("\nGenerated files for each frame:")
-    print("  - frame_N_mask.png    (yellow mask - where to apply texture)")
-    print("  - frame_N_lines.png   (black outline lines)")
-    print("  - frame_N_shading.png (shading/lighting information)")
-    print("  - frame_N_base.png    (base frame with transparency)")
+    print("  - frame_N_mask.png     (yellow mask - where to apply texture)")
+    print("  - frame_N_lines.png    (black outline lines)")
+    print("  - frame_N_shading.png  (shading/lighting information)")
+    print("  - frame_N_backpack.png (backpack mask - for custom backpack color)")
+    print("  - frame_N_base.png     (base frame with transparency)")
 
 
 if __name__ == "__main__":

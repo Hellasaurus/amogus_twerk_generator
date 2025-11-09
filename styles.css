@@ -118,7 +118,6 @@ h1 {
 .logo {
   height: 80px;
   width: auto;
-  padding-bottom: 20px;
 }
 
 .logo-light {
@@ -126,6 +125,14 @@ h1 {
 }
 
 .logo-dark {
+  display: none;
+}
+
+.heading-light {
+  display: block;
+}
+
+.heading-dark {
   display: none;
 }
 
@@ -137,12 +144,18 @@ h1 {
   .logo-dark {
     display: block;
   }
+
+  .heading-light {
+    display: none;
+  }
+
+  .heading-dark {
+    display: block;
+  }
 }
 
 .heading-svg {
-  display: block;
-  width: 100%;
-  max-width: 500px;
+  max-width: 400px;
   height: auto;
   color: var(--text-primary);
   overflow: visible;

@@ -455,7 +455,13 @@ function processAndDrawFrame(texture, frameIndex = 0) {
   if (cacheValid) {
     // Use cached frame
     ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
-    ctx.drawImage(processedFrameCache[frameIndex], 0, 0, CANVAS_SIZE, CANVAS_SIZE);
+    ctx.drawImage(
+      processedFrameCache[frameIndex],
+      0,
+      0,
+      CANVAS_SIZE,
+      CANVAS_SIZE
+    );
     return processedFrameCache[frameIndex];
   }
 
@@ -638,10 +644,17 @@ function processAndDrawFrame(texture, frameIndex = 0) {
 
     // Check if this pixel is in the mask (using red channel, since it's grayscale)
     if (maskData[i] > 128) {
-      // Get shading value (0-255, maps to 0.3-1.2)
-      // 0 = 0.3 (deep shadows), 255 = 1.2 (bright highlights)
+      // Get shading value (0-255, maps to darker shading with nonlinear falloff)
+      // >=205 = 1.0 (no shading), 0 = 0.3 (deep shadows)
+      // Using quadratic falloff for pronounced difference between light and dark
       const shadingValue = shadingData[i];
-      const shade = (shadingValue / 255) * 0.9 + 0.3; // Map 0-255 to 0.3-1.2
+      if (shadingValue >= 205) {
+        var shade = 1.0;
+      } else {
+        const normalized = shadingValue / 205; // 0-1 range
+        const curved = Math.pow(normalized, 4); // Quadratic falloff
+        var shade = 0.0 + curved * 1; // Map to 0.0-1.0
+      }
 
       // Apply texture with shading
       // Clamp to 0-255 to prevent overflow

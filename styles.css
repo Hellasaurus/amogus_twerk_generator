@@ -308,7 +308,7 @@ h1 {
   width: 32px;
   height: 32px;
   background: #e53e3e;
-  border: 3px solid white;
+  border: 0px solid white;
   border-radius: 50%;
   cursor: pointer;
   display: flex;

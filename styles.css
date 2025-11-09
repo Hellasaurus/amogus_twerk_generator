@@ -82,7 +82,7 @@ textarea {
 }
 
 body {
-  font-family: "Comic Sans MS", "Comic Sans", cursive;
+  font-family: "Comic Sans MS", "Comic Sans", sans-serif, sys;
   background: var(--bg-body);
   min-height: 100vh;
   display: flex;
@@ -112,7 +112,7 @@ h1 {
   align-items: center;
   justify-content: center;
   gap: 20px;
-  min-height: 80px;
+  height: 80px;
 }
 
 .logo {

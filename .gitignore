@@ -1,3 +1,6 @@
+# System files
+.DS_Store
+
 # Node dependencies and build artifacts
 node_modules/
 
@@ -21,3 +24,5 @@ __pycache__/
 *.pyc
 samples/
 test_output/
+manual-feature-extraction/
+.vscode/

@@ -1,0 +1,23 @@
+# Node dependencies and build artifacts
+node_modules/
+
+# Native addons
+*.node
+
+# Package manager logs and lockfiles (optional)
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+yarn.lock
+.pnpm-store/
+
+# ignore mesh-editor directory
+mesh-editor/   
+
+venv/
+__pycache__/
+*.pyc
+samples/
+test_output/

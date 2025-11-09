@@ -378,8 +378,7 @@ function loadTexture(file) {
       invalidateFrameCache(); // Clear cache when new texture is loaded
       previewSection.style.display = "block";
       downloadBtn.style.display = "none";
-      statusDiv.textContent =
-        'Texture loaded - Click "Generate" to export (suitable for Slack emotes)';
+      statusDiv.textContent = "Texture loaded";
 
       // Start animated preview
       if (prerenderedFrames.base.length > 0) {

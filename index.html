@@ -8,7 +8,21 @@
   </head>
   <body>
     <div class="container">
-      <h1>Amogus Twerk Generator</h1>
+      <h1 class="heading-with-logo">
+        <img src="logo_light.png" alt="Logo" class="logo logo-light" />
+        <img src="logo_dark.png" alt="Logo" class="logo logo-dark" />
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="1.4914285714285715 14.579999999999998 400.9960714285714 47.730000000000004"
+          width="100%"
+          height="100%"
+          aria-label="Amogus Twerk Generator"
+          class="heading-svg"
+        >
+          <title>Amogus Twerk Generator</title>
+          <use href="heading.svg" />
+        </svg>
+      </h1>
 
       <div class="upload-section">
         <label for="texture-upload" class="upload-label">
@@ -39,71 +53,47 @@
           </div>
 
           <div class="backpack-color-section">
-          <label
-            id="backpack-color-label"
-            style="display: block; margin-bottom: 8px; font-weight: 500"
-          >
-            Backpack Color: Transparent
-          </label>
-          <div style="display: flex; gap: 8px; align-items: center">
-            <input
-              type="color"
-              id="backpack-color"
-              value="#000000"
-              style="
-                width: 60px;
-                height: 40px;
-                border: 2px solid #ddd;
-                border-radius: 4px;
-                cursor: pointer;
-              "
-            />
-            <button
-              id="clear-backpack-color"
-              class="btn"
-              style="padding: 8px 16px; font-size: 14px"
+            <label
+              id="backpack-color-label"
+              style="display: block; margin-bottom: 8px; font-weight: 500"
             >
-              <span
+              Backpack Color: Transparent
+            </label>
+            <div style="display: flex; gap: 8px; align-items: center">
+              <input
+                type="color"
+                id="backpack-color"
+                value="#000000"
                 style="
-                  display: inline-block;
-                  width: 16px;
-                  height: 16px;
-                  background: white;
-                  border: 1px solid #666;
-                  border-radius: 2px;
-                  vertical-align: middle;
-                  margin-right: 4px;
-                  position: relative;
+                  width: 60px;
+                  height: 40px;
+                  border: 2px solid var(--input-border);
+                  border-radius: 4px;
+                  cursor: pointer;
                 "
-                ><span
-                  style="
-                    position: absolute;
-                    top: 50%;
-                    left: -2px;
-                    right: -2px;
-                    height: 1.5px;
-                    background: #e53e3e;
-                    transform: rotate(-45deg);
-                  "
-                ></span></span
-              >Transparent
-            </button>
+              />
+              <button
+                id="clear-backpack-color"
+                class="clear-color-btn"
+              ></button>
+            </div>
           </div>
         </div>
-        </div>
 
-        <div class="controls">
-          <button id="generate-btn" class="btn btn-primary">Generate!</button>
-          <button
-            id="download-btn"
-            class="btn btn-success"
-            style="display: none"
-          >
-            Download .gif
-          </button>
-        </div>
+        <div class="controls-with-status">
+          <div class="controls">
+            <button id="generate-btn" class="btn btn-primary">Generate</button>
+            <button
+              id="download-btn"
+              class="btn btn-success"
+              style="display: none"
+            >
+              Download .gif
+            </button>
+          </div>
 
-        <div class="status" id="status"></div>
+          <div class="status" id="status"></div>
+        </div>
       </div>
 
       <div

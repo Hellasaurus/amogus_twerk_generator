@@ -711,7 +711,7 @@ async function generateGIF() {
   isGenerating = true;
   generateBtn.disabled = true;
   downloadBtn.style.display = "none";
-  statusDiv.style.display = "block";
+  statusDiv.style.visibility = "visible";
   statusDiv.className = "status processing";
   statusDiv.textContent = "Generating GIF... This may take a moment.";
 
@@ -806,14 +806,14 @@ async function generateGIF() {
     // Hide status when done
     statusDiv.className = "status";
     statusDiv.textContent = "";
-    statusDiv.style.display = "none";
+    statusDiv.style.visibility = "hidden";
 
     isGenerating = false;
     generateBtn.disabled = false;
   });
 
   gif.on("abort", () => {
-    statusDiv.style.display = "block";
+    statusDiv.style.visibility = "visible";
     statusDiv.className = "status";
     statusDiv.textContent = "GIF generation was aborted.";
     isGenerating = false;
@@ -824,7 +824,7 @@ async function generateGIF() {
     gif.render();
   } catch (error) {
     console.error("GIF render error:", error);
-    statusDiv.style.display = "block";
+    statusDiv.style.visibility = "visible";
     statusDiv.className = "status";
     statusDiv.textContent = "Error generating GIF. Check console for details.";
     isGenerating = false;

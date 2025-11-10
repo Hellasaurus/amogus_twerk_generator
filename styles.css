@@ -86,6 +86,7 @@ body {
   background: var(--bg-body);
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   padding: 20px;
@@ -156,6 +157,7 @@ h1 {
 
 .heading-svg {
   max-width: 400px;
+  width: 100%;
   height: auto;
   color: var(--text-primary);
   overflow: visible;
@@ -240,6 +242,25 @@ h1 {
 
   .logo {
     display: none;
+  }
+
+  .heading-with-logo {
+    gap: 10px;
+    height: auto;
+  }
+
+  .heading-svg {
+    max-width: 100%;
+    padding-top: 5px;
+    padding-bottom: 5px;
+  }
+
+  .container {
+    padding: 20px;
+  }
+
+  body {
+    padding: 10px;
   }
 }
 
@@ -536,4 +557,16 @@ h1 {
 .delete-gif-btn::before {
   content: "×";
   line-height: 1;
+}
+
+footer {
+  text-align: center;
+  padding: 20px;
+  margin-top: 20px;
+  color: var(--text-secondary);
+  font-size: 0.9em;
+}
+
+footer p {
+  margin: 0;
 }

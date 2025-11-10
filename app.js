@@ -29,8 +29,8 @@ const MASK_PATHS = {
   ),
   backpack: Array.from(
     // start with frame 2 since frame 1 has no backpack
-    { length: FRAME_COUNT - 1 },
-    (_, i) => `masks/frame_${i + 2}_backpack.png`
+    { length: FRAME_COUNT},
+    (_, i) => `masks/frame_${i + 1}_backpack.png`
   ),
 };
 

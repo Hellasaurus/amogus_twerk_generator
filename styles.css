@@ -329,6 +329,9 @@ h1 {
   background: var(--bg-canvas);
   image-rendering: pixelated;
   image-rendering: crisp-edges;
+  will-change: contents;
+  /* Promote to own layer for better animation performance */
+  transform: translateZ(0);
 }
 
 .controls-with-status {

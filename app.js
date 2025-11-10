@@ -28,8 +28,9 @@ const MASK_PATHS = {
     (_, i) => `masks/frame_${i + 1}_shading.png`
   ),
   backpack: Array.from(
-    { length: FRAME_COUNT },
-    (_, i) => `masks/frame_${i + 1}_backpack.png`
+    // start with frame 2 since frame 1 has no backpack
+    { length: FRAME_COUNT - 1 },
+    (_, i) => `masks/frame_${i + 2}_backpack.png`
   ),
 };
 
@@ -45,6 +46,7 @@ let uploadedTexture = null;
 let backpackColor = null; // Hex color for backpack, null = transparent
 let isGenerating = false;
 let previewAnimationInterval = null; // For animating the preview
+let previewAnimationFrameId = null; // For requestAnimationFrame-based animation
 let meshDeformer = null; // WebGL mesh deformer (only if ENABLE_MESH_DEFORMATION is true)
 let processedFrameCache = []; // Cache for processed frames to avoid reprocessing
 let lastTextureUrl = null; // Track texture changes to invalidate cache
@@ -63,7 +65,11 @@ const gifGrid = document.getElementById("gif-grid");
 const backpackColorPicker = document.getElementById("backpack-color");
 const backpackColorLabel = document.getElementById("backpack-color-label");
 
-const ctx = previewCanvas.getContext("2d", { willReadFrequently: true });
+const ctx = previewCanvas.getContext("2d", {
+  willReadFrequently: true,
+  alpha: true,
+  desynchronized: true // Hint to browser for better animation performance
+});
 
 // LocalStorage keys
 const STORAGE_KEYS = {
@@ -395,23 +401,41 @@ function startPreviewAnimation() {
   if (previewAnimationInterval) {
     clearInterval(previewAnimationInterval);
   }
+  if (previewAnimationFrameId) {
+    cancelAnimationFrame(previewAnimationFrameId);
+  }
 
   let currentFrame = 0;
+  let lastFrameTime = performance.now();
 
   // Draw first frame immediately
   processAndDrawFrame(uploadedTexture, currentFrame);
 
-  // Animate through all frames
-  previewAnimationInterval = setInterval(() => {
-    currentFrame = (currentFrame + 1) % FRAME_COUNT;
-    processAndDrawFrame(uploadedTexture, currentFrame);
-  }, FRAME_DELAY);
+  // Use requestAnimationFrame for smoother animation
+  function animate(currentTime) {
+    const elapsed = currentTime - lastFrameTime;
+
+    // Only update frame if enough time has passed
+    if (elapsed >= FRAME_DELAY) {
+      currentFrame = (currentFrame + 1) % FRAME_COUNT;
+      processAndDrawFrame(uploadedTexture, currentFrame);
+      lastFrameTime = currentTime - (elapsed % FRAME_DELAY); // Account for timing drift
+    }
+
+    previewAnimationFrameId = requestAnimationFrame(animate);
+  }
+
+  previewAnimationFrameId = requestAnimationFrame(animate);
 }
 
 function stopPreviewAnimation() {
   if (previewAnimationInterval) {
     clearInterval(previewAnimationInterval);
     previewAnimationInterval = null;
+  }
+  if (previewAnimationFrameId) {
+    cancelAnimationFrame(previewAnimationFrameId);
+    previewAnimationFrameId = null;
   }
 }
 
